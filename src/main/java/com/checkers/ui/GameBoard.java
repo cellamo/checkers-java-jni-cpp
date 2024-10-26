@@ -222,4 +222,8 @@ public class GameBoard extends JPanel {
             g.drawString("K", x + diameter / 2 - 5, y + diameter / 2 + 5);
         }
     }
+
+    public Point convertMouseCoordinatesToBoard(Point mousePoint) {
+        return new Point(mousePoint.x / CELL_SIZE, mousePoint.y / CELL_SIZE);
+    }    
 }
