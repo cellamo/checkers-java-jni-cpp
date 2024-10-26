@@ -3,6 +3,8 @@ package com.checkers.ui;
 import com.checkers.core.NativeInterface;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -16,6 +18,8 @@ public class GameBoard extends JPanel {
     private Point selectedPiece = null;
     private List<Point> validMoves = new ArrayList<>();
     private final Consumer<Integer> statusCallback;
+    private Point cursorPosition = new Point(0, 0);
+    private boolean isKeyboardSelectionMode = false;
 
     public GameBoard(Consumer<Integer> statusCallback) {
         this.statusCallback = statusCallback;
@@ -33,6 +37,14 @@ public class GameBoard extends JPanel {
             }
         });
 
+        setFocusable(true);
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleKeyPress(e);
+            }
+        });
+
         statusCallback.accept(nativeInterface.getCurrentPlayer());
     }
 
@@ -43,9 +55,9 @@ public class GameBoard extends JPanel {
                 int piece = board[y][x];
                 // Check if piece belongs to current player
                 if ((playerColor == 0 && (piece == 1 || piece == 2)) ||
-                    (playerColor == 1 && (piece == 3 || piece == 4))) {
+                        (playerColor == 1 && (piece == 3 || piece == 4))) {
                     // Check for possible captures
-                    int[][] captureDirections = {{-2, -2}, {-2, 2}, {2, -2}, {2, 2}};
+                    int[][] captureDirections = { { -2, -2 }, { -2, 2 }, { 2, -2 }, { 2, 2 } };
                     for (int[] dir : captureDirections) {
                         int newX = x + dir[0];
                         int newY = y + dir[1];
@@ -62,24 +74,24 @@ public class GameBoard extends JPanel {
     private void handleMouseClick(Point click) {
         int col = click.x / CELL_SIZE;
         int row = click.y / CELL_SIZE;
-    
+
         if (selectedPiece == null) {
             int[][] board = nativeInterface.getBoardState();
             int piece = board[row][col];
             int currentPlayer = nativeInterface.getCurrentPlayer();
-        
+
             // Check if any piece has capture moves
             boolean hasCaptures = hasCaptureMoves(currentPlayer);
-        
+
             // If captures exist, only allow selecting pieces with captures
             boolean isValidSelection;
             if (hasCaptures) {
-                isValidSelection = (currentPlayer == 0 && (piece == 1 || piece == 2)) || 
-                             (currentPlayer == 1 && (piece == 3 || piece == 4));
-            
+                isValidSelection = (currentPlayer == 0 && (piece == 1 || piece == 2)) ||
+                        (currentPlayer == 1 && (piece == 3 || piece == 4));
+
                 if (isValidSelection) {
                     // Verify this specific piece has capture moves
-                    int[][] captureDirections = {{-2, -2}, {-2, 2}, {2, -2}, {2, 2}};
+                    int[][] captureDirections = { { -2, -2 }, { -2, 2 }, { 2, -2 }, { 2, 2 } };
                     boolean hasCaptureMove = false;
                     for (int[] dir : captureDirections) {
                         int newX = col + dir[0];
@@ -93,10 +105,10 @@ public class GameBoard extends JPanel {
                 }
             } else {
                 // No captures available, normal selection rules apply
-                isValidSelection = (currentPlayer == 0 && (piece == 1 || piece == 2)) || 
-                             (currentPlayer == 1 && (piece == 3 || piece == 4));
+                isValidSelection = (currentPlayer == 0 && (piece == 1 || piece == 2)) ||
+                        (currentPlayer == 1 && (piece == 3 || piece == 4));
             }
-        
+
             if (isValidSelection) {
                 selectedPiece = new Point(col, row);
                 highlightValidMoves();
@@ -110,16 +122,16 @@ public class GameBoard extends JPanel {
                 selectedPiece = null;
                 validMoves.clear();
                 statusCallback.accept(nativeInterface.getCurrentPlayer());
-            
+
                 if (nativeInterface.isGameOver()) {
                     int winner = nativeInterface.getWinner();
                     String winnerText = winner == 0 ? "Black" : "Red";
-                    JOptionPane.showMessageDialog(this, 
-                        winnerText + " wins!", 
-                        "Game Over", 
-                        JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(this,
+                            winnerText + " wins!",
+                            "Game Over",
+                            JOptionPane.INFORMATION_MESSAGE);
                 }
-            
+
                 repaint();
             } else {
                 // Invalid move - deselect piece
@@ -132,11 +144,11 @@ public class GameBoard extends JPanel {
 
     private void highlightValidMoves() {
         validMoves.clear();
-        
+
         // First check for capture moves
         boolean hasCaptures = false;
-        int[][] captureDirections = {{-2, -2}, {-2, 2}, {2, -2}, {2, 2}};
-        
+        int[][] captureDirections = { { -2, -2 }, { -2, 2 }, { 2, -2 }, { 2, 2 } };
+
         for (int[] dir : captureDirections) {
             int newX = selectedPiece.x + dir[0];
             int newY = selectedPiece.y + dir[1];
@@ -145,10 +157,10 @@ public class GameBoard extends JPanel {
                 hasCaptures = true;
             }
         }
-        
+
         // Only check for regular moves if no captures are available
         if (!hasCaptures) {
-            int[][] regularDirections = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
+            int[][] regularDirections = { { -1, -1 }, { -1, 1 }, { 1, -1 }, { 1, 1 } };
             for (int[] dir : regularDirections) {
                 int newX = selectedPiece.x + dir[0];
                 int newY = selectedPiece.y + dir[1];
@@ -179,6 +191,17 @@ public class GameBoard extends JPanel {
                     move.y * CELL_SIZE,
                     CELL_SIZE, CELL_SIZE);
         }
+
+        // Draw keyboard cursor - outer border
+        g.setColor(new Color(0, 200, 255));
+        g.drawRect(cursorPosition.x * CELL_SIZE + 2,
+                cursorPosition.y * CELL_SIZE + 2,
+                CELL_SIZE - 4, CELL_SIZE - 4);
+
+        // Inner border for better contrast
+        g.drawRect(cursorPosition.x * CELL_SIZE + 1,
+                cursorPosition.y * CELL_SIZE + 1,
+                CELL_SIZE - 3, CELL_SIZE - 3);
 
         drawPieces(g);
     }
@@ -225,5 +248,42 @@ public class GameBoard extends JPanel {
 
     public Point convertMouseCoordinatesToBoard(Point mousePoint) {
         return new Point(mousePoint.x / CELL_SIZE, mousePoint.y / CELL_SIZE);
-    }    
+    }
+
+    private void handleKeyPress(KeyEvent e) {
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_LEFT:
+                cursorPosition.x = Math.max(0, cursorPosition.x - 1);
+                break;
+            case KeyEvent.VK_RIGHT:
+                cursorPosition.x = Math.min(BOARD_SIZE - 1, cursorPosition.x + 1);
+                break;
+            case KeyEvent.VK_UP:
+                cursorPosition.y = Math.max(0, cursorPosition.y - 1);
+                break;
+            case KeyEvent.VK_DOWN:
+                cursorPosition.y = Math.min(BOARD_SIZE - 1, cursorPosition.y + 1);
+                break;
+            case KeyEvent.VK_ENTER:
+            case KeyEvent.VK_SPACE:
+                handleKeyboardSelection();
+                break;
+        }
+        repaint();
+    }
+
+    private void handleKeyboardSelection() {
+        if (!isKeyboardSelectionMode) {
+            handleMouseClick(new Point(
+                    cursorPosition.x * CELL_SIZE + CELL_SIZE / 2,
+                    cursorPosition.y * CELL_SIZE + CELL_SIZE / 2));
+            isKeyboardSelectionMode = selectedPiece != null;
+        } else {
+            handleMouseClick(new Point(
+                    cursorPosition.x * CELL_SIZE + CELL_SIZE / 2,
+                    cursorPosition.y * CELL_SIZE + CELL_SIZE / 2));
+            isKeyboardSelectionMode = false;
+        }
+    }
+
 }
