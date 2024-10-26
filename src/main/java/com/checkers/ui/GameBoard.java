@@ -36,32 +36,81 @@ public class GameBoard extends JPanel {
         statusCallback.accept(nativeInterface.getCurrentPlayer());
     }
 
+    private boolean hasCaptureMoves(int playerColor) {
+        int[][] board = nativeInterface.getBoardState();
+        for (int y = 0; y < BOARD_SIZE; y++) {
+            for (int x = 0; x < BOARD_SIZE; x++) {
+                int piece = board[y][x];
+                // Check if piece belongs to current player
+                if ((playerColor == 0 && (piece == 1 || piece == 2)) ||
+                    (playerColor == 1 && (piece == 3 || piece == 4))) {
+                    // Check for possible captures
+                    int[][] captureDirections = {{-2, -2}, {-2, 2}, {2, -2}, {2, 2}};
+                    for (int[] dir : captureDirections) {
+                        int newX = x + dir[0];
+                        int newY = y + dir[1];
+                        if (nativeInterface.validateMove(x, y, newX, newY)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     private void handleMouseClick(Point click) {
         int col = click.x / CELL_SIZE;
         int row = click.y / CELL_SIZE;
-        
+    
         if (selectedPiece == null) {
             int[][] board = nativeInterface.getBoardState();
             int piece = board[row][col];
             int currentPlayer = nativeInterface.getCurrentPlayer();
+        
+            // Check if any piece has capture moves
+            boolean hasCaptures = hasCaptureMoves(currentPlayer);
+        
+            // If captures exist, only allow selecting pieces with captures
+            boolean isValidSelection;
+            if (hasCaptures) {
+                isValidSelection = (currentPlayer == 0 && (piece == 1 || piece == 2)) || 
+                             (currentPlayer == 1 && (piece == 3 || piece == 4));
             
-            // Validate piece selection based on current player
-            boolean isValidSelection = (currentPlayer == 0 && (piece == 1 || piece == 2)) || 
-                                     (currentPlayer == 1 && (piece == 3 || piece == 4));
-            
+                if (isValidSelection) {
+                    // Verify this specific piece has capture moves
+                    int[][] captureDirections = {{-2, -2}, {-2, 2}, {2, -2}, {2, 2}};
+                    boolean hasCaptureMove = false;
+                    for (int[] dir : captureDirections) {
+                        int newX = col + dir[0];
+                        int newY = row + dir[1];
+                        if (nativeInterface.validateMove(col, row, newX, newY)) {
+                            hasCaptureMove = true;
+                            break;
+                        }
+                    }
+                    isValidSelection = hasCaptureMove;
+                }
+            } else {
+                // No captures available, normal selection rules apply
+                isValidSelection = (currentPlayer == 0 && (piece == 1 || piece == 2)) || 
+                             (currentPlayer == 1 && (piece == 3 || piece == 4));
+            }
+        
             if (isValidSelection) {
                 selectedPiece = new Point(col, row);
                 highlightValidMoves();
                 repaint();
             }
         } else {
-            // Attempt to move the selected piece
-            if (nativeInterface.validateMove(selectedPiece.x, selectedPiece.y, col, row)) {
+            // Check if clicked position is in validMoves list
+            Point targetMove = new Point(col, row);
+            if (validMoves.stream().anyMatch(move -> move.equals(targetMove))) {
                 nativeInterface.performMove(selectedPiece.x, selectedPiece.y, col, row);
                 selectedPiece = null;
                 validMoves.clear();
                 statusCallback.accept(nativeInterface.getCurrentPlayer());
-                
+            
                 if (nativeInterface.isGameOver()) {
                     int winner = nativeInterface.getWinner();
                     String winnerText = winner == 0 ? "Black" : "Red";
@@ -70,7 +119,7 @@ public class GameBoard extends JPanel {
                         "Game Over", 
                         JOptionPane.INFORMATION_MESSAGE);
                 }
-                
+            
                 repaint();
             } else {
                 // Invalid move - deselect piece
@@ -79,16 +128,33 @@ public class GameBoard extends JPanel {
                 repaint();
             }
         }
-    }    
+    }
 
     private void highlightValidMoves() {
         validMoves.clear();
-        int[][] directions = { { -1, -1 }, { -1, 1 }, { 1, -1 }, { 1, 1 } };
-        for (int[] dir : directions) {
+        
+        // First check for capture moves
+        boolean hasCaptures = false;
+        int[][] captureDirections = {{-2, -2}, {-2, 2}, {2, -2}, {2, 2}};
+        
+        for (int[] dir : captureDirections) {
             int newX = selectedPiece.x + dir[0];
             int newY = selectedPiece.y + dir[1];
             if (nativeInterface.validateMove(selectedPiece.x, selectedPiece.y, newX, newY)) {
                 validMoves.add(new Point(newX, newY));
+                hasCaptures = true;
+            }
+        }
+        
+        // Only check for regular moves if no captures are available
+        if (!hasCaptures) {
+            int[][] regularDirections = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
+            for (int[] dir : regularDirections) {
+                int newX = selectedPiece.x + dir[0];
+                int newY = selectedPiece.y + dir[1];
+                if (nativeInterface.validateMove(selectedPiece.x, selectedPiece.y, newX, newY)) {
+                    validMoves.add(new Point(newX, newY));
+                }
             }
         }
     }
