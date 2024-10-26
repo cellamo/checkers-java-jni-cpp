@@ -5,7 +5,7 @@ class Game {
 public:
     Game();
     void initGame();
-    bool validateMove(int startX, int startY, int endX, int endY);
+    bool validateMove(int startX, int startY, int endX, int endY) const;
     void performMove(int startX, int startY, int endX, int endY);
     const Board& getBoard() const;
     PieceColor getCurrentPlayer() const;

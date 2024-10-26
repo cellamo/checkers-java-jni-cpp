@@ -9,7 +9,7 @@ void Game::initGame() {
     currentPlayer = PieceColor::BLACK;
 }
 
-bool Game::validateMove(int startX, int startY, int endX, int endY) {
+bool Game::validateMove(int startX, int startY, int endX, int endY) const {
     if (!board.isValidPosition(startX, startY) || !board.isValidPosition(endX, endY)) {
         return false;
     }
@@ -83,11 +83,77 @@ PieceColor Game::getCurrentPlayer() const {
 }
 
 bool Game::isGameOver() const {
-    // Implement game over logic
-    return false;
+    // Count pieces and check for possible moves for each player
+    int blackPieces = 0;
+    int redPieces = 0;
+    bool blackHasMoves = false;
+    bool redHasMoves = false;
+
+    for (int y = 0; y < Board::BOARD_SIZE; y++) {
+        for (int x = 0; x < Board::BOARD_SIZE; x++) {
+            Piece piece = board.getPiece(x, y);
+            
+            // Count pieces
+            if (piece.color == PieceColor::BLACK) {
+                blackPieces++;
+                // Check for possible moves
+                if (!blackHasMoves) {
+                    for (int dy = -2; dy <= 2; dy++) {
+                        for (int dx = -2; dx <= 2; dx++) {
+                            if (dx != 0 && dy != 0 && validateMove(x, y, x + dx, y + dy)) {
+                                blackHasMoves = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } else if (piece.color == PieceColor::RED) {
+                redPieces++;
+                // Check for possible moves
+                if (!redHasMoves) {
+                    for (int dy = -2; dy <= 2; dy++) {
+                        for (int dx = -2; dx <= 2; dx++) {
+                            if (dx != 0 && dy != 0 && validateMove(x, y, x + dx, y + dy)) {
+                                redHasMoves = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Game is over if either player has no pieces or no valid moves
+    return blackPieces == 0 || redPieces == 0 || 
+           (currentPlayer == PieceColor::BLACK && !blackHasMoves) ||
+           (currentPlayer == PieceColor::RED && !redHasMoves);
 }
 
 PieceColor Game::getWinner() const {
-    // Implement winner determination logic
+    if (!isGameOver()) return PieceColor::NONE;
+
+    // Count pieces
+    int blackPieces = 0;
+    int redPieces = 0;
+    bool blackHasMoves = false;
+    bool redHasMoves = false;
+
+    for (int y = 0; y < Board::BOARD_SIZE; y++) {
+        for (int x = 0; x < Board::BOARD_SIZE; x++) {
+            Piece piece = board.getPiece(x, y);
+            if (piece.color == PieceColor::BLACK) blackPieces++;
+            if (piece.color == PieceColor::RED) redPieces++;
+        }
+    }
+
+    // Determine winner based on piece count and available moves
+    if (blackPieces == 0 || (currentPlayer == PieceColor::BLACK && !blackHasMoves)) {
+        return PieceColor::RED;
+    }
+    if (redPieces == 0 || (currentPlayer == PieceColor::RED && !redHasMoves)) {
+        return PieceColor::BLACK;
+    }
+
     return PieceColor::NONE;
 }
